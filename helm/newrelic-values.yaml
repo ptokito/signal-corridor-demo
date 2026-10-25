@@ -1,0 +1,34 @@
+# Values for the New Relic "nri-bundle" Helm chart (the Kubernetes integration).
+# The license key and cluster name are passed on the command line by the setup
+# scripts, so this file holds no secrets and works for both the local VM and AWS.
+global:
+  lowDataMode: false
+
+newrelic-infrastructure:
+  enabled: true
+  privileged: true          # read node-level metrics and process data
+
+nri-metadata-injection:
+  enabled: true             # adds pod, namespace and deployment names to APM data automatically
+
+kube-state-metrics:
+  enabled: true             # object state: desired vs available replicas, pod phases
+
+nri-kube-events:
+  enabled: true             # Kubernetes events (Killing, Unhealthy, BackOff) as New Relic events
+
+newrelic-logging:
+  enabled: true             # Fluent Bit DaemonSet: every container's stdout to New Relic Logs
+  # Note: the corridor services' log lines also arrive through their APM agents
+  # (with trace IDs), so those lines are collected twice. Left as-is on purpose:
+  # it is one of the documented "aha" findings, with the fix options described
+  # in the customer guide.
+
+nri-prometheus:
+  enabled: false
+newrelic-prometheus-agent:
+  enabled: false
+newrelic-pixie:
+  enabled: false
+newrelic-k8s-metrics-adapter:
+  enabled: false

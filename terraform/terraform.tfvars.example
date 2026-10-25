@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars and fill in. Do NOT commit terraform.tfvars.
+# Put the license key in an environment variable instead of this file:
+#   export TF_VAR_newrelic_license_key='xxxxxxxxxxxxxxxxxxxxNRAL'
+
+repo_url            = "https://github.com/ptokito/signal-corridor-demo.git"
+newrelic_account_id = "1234567"
+region              = "us-east-1"
+k3s_use_spot        = true

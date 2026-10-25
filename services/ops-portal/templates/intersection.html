@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}{{ i.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('overview') }}">&larr; Corridor overview</a></p>
+<h1 id="intersection-name">{{ i.name }}</h1>
+<p class="lede">{{ i.corridor }}, {{ i.county }} County. Posted speed {{ i.speed_mph }} mph.</p>
+
+{% if submitted %}<p class="ok" id="report-confirmation">Field report #{{ submitted }} created. A crew has been notified.</p>{% endif %}
+
+<h2>Active timing plan</h2>
+<table class="grid plan" id="plan">
+  <tr><th>Plan version</th><td id="plan-version">{{ i.plan.plan_version }}</td></tr>
+  <tr><th>Cycle length</th><td>{{ i.plan.cycle_s }} s</td></tr>
+  <tr><th>Green, main street</th><td>{{ i.plan.green_main_s }} s</td></tr>
+  <tr><th>Green, side street</th><td>{{ i.plan.green_side_s }} s</td></tr>
+  <tr><th>Yellow (change interval)</th>
+      <td id="yellow-seconds" data-seconds="{{ i.plan.yellow_s }}" class="{{ 'bad' if i.plan.yellow_s < min_yellow else 'good' }}">{{ '%.1f'|format(i.plan.yellow_s) }} s</td></tr>
+  <tr><th>All-red clearance</th><td>{{ i.plan.all_red_s }} s</td></tr>
+</table>
+
+<h2>Report a field issue</h2>
+<form method="post" action="{{ url_for('report', iid=i.id) }}" class="form" id="report-form">
+  <label>Issue
+    <select name="issue" id="issue">{% for x in issues %}<option>{{ x }}</option>{% endfor %}</select>
+  </label>
+  <label>Reported by <input name="reporter" id="reporter" value="TOC operator"></label>
+  <button type="submit" class="btn" id="submit-report">Dispatch a crew</button>
+</form>
+
+<h2>Recent controller check-ins</h2>
+<table class="grid">
+  <thead><tr><th>Time (UTC)</th><th>Plan</th><th>Yellow</th><th>Controller</th></tr></thead>
+  <tbody>
+  {% for h in i.history %}
+    <tr><td>{{ h.at[:19] | replace('T', ' ') }}</td><td>{{ h.plan_version }}</td>
+        <td class="{{ 'good' if h.compliant else 'bad' }}">{{ '%.1f s'|format(h.yellow_s) }}</td><td>{{ h.controller_state }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

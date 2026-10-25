@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<h1>US-41/70S Murfreesboro Pike</h1>
+<p class="lede">10 connected signals, Davidson County. Minimum safe yellow interval: {{ min_yellow }} s.</p>
+
+{% if flagged %}
+<p class="alert" id="flagged">{{ flagged }} intersection(s) running a yellow interval below {{ min_yellow }} s.</p>
+{% else %}
+<p class="ok" id="flagged">All intersections within timing standards.</p>
+{% endif %}
+
+<table class="grid" id="corridor">
+  <thead>
+    <tr><th>#</th><th>Intersection</th><th>Speed</th><th>Plan</th><th>Yellow</th><th>Controller</th><th>Last check-in (UTC)</th></tr>
+  </thead>
+  <tbody>
+  {% for i in intersections %}
+    <tr>
+      <td>{{ i.id }}</td>
+      <td><a href="{{ url_for('intersection', iid=i.id) }}" id="link-{{ i.id }}">{{ i.name }}</a></td>
+      <td>{{ i.speed_mph }} mph</td>
+      <td>{{ i.plan_version or "none" }}</td>
+      <td class="{{ 'bad' if i.compliant == false else 'good' }}">{{ '%.1f s'|format(i.yellow_s) if i.yellow_s is not none else '-' }}</td>
+      <td>{{ i.controller_state or "-" }}</td>
+      <td>{{ (i.last_checkin or '-')[:19] | replace('T', ' ') }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

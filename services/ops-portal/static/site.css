@@ -1,0 +1,25 @@
+/* Operations Portal styles. Deliberately plain: no state seal, logo or agency branding. */
+:root { --ink:#1c2128; --bg:#f4f5f2; --band:#24313f; --line:#d5d8d2; --good:#1d7a46; --bad:#b3261e; --amber:#e3a21a; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color:var(--ink); background:var(--bg); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+.banner { background: var(--band); color:#fff; padding: 12px 0; }
+.banner .wrap { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+/* A small three-lamp signal head made of CSS circles. */
+.mark { display:grid; gap:3px; background:#11181f; padding:5px; border-radius:6px; }
+.mark i { width:10px; height:10px; border-radius:50%; display:block; }
+.mark i:nth-child(1) { background:#c0392b; } .mark i:nth-child(2) { background:var(--amber); } .mark i:nth-child(3) { background:#27ae60; }
+.product { font-weight:700; } .sub { font-size:.85rem; opacity:.85; }
+nav { margin-left:auto; } nav a { color:#fff; }
+h1 { margin: 28px 0 6px; } .lede { margin-top:0; color:#4a525c; }
+.grid { width:100%; border-collapse: collapse; background:#fff; border:1px solid var(--line); margin-bottom: 24px; }
+.grid th, .grid td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); font-size:.95rem; }
+.grid.plan { max-width: 460px; }
+.good { color: var(--good); font-weight:600; } .bad { color: var(--bad); font-weight:700; }
+.alert { background:#fdecea; border-left:5px solid var(--bad); padding:10px 14px; }
+.ok { background:#e8f5ec; border-left:5px solid var(--good); padding:10px 14px; }
+.form { display:flex; gap:12px; flex-wrap:wrap; align-items:end; margin-bottom:24px; }
+label { display:grid; gap:4px; font-weight:600; font-size:.9rem; } input, select { padding:7px; font-size:1rem; }
+.btn { background: var(--band); color:#fff; border:0; padding:9px 16px; border-radius:6px; cursor:pointer; text-decoration:none; }
+.small { font-size:.8rem; color:#666; margin: 36px auto 20px; }
+@media (max-width: 640px) { .grid th:nth-child(6), .grid td:nth-child(6), .grid th:nth-child(7), .grid td:nth-child(7) { display:none; } }

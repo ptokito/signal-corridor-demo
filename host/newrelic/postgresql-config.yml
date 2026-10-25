@@ -1,0 +1,21 @@
+# New Relic PostgreSQL on-host integration (package: nri-postgresql).
+# Connects as the read-only "newrelic" role (member of pg_monitor) every 30 seconds
+# and reports connections, transactions, cache hit ratio, table and index stats,
+# and locks. __PG_PASSWORD__ is replaced by the setup script; never commit it.
+integrations:
+  - name: nri-postgresql
+    env:
+      USERNAME: newrelic
+      PASSWORD: __PG_PASSWORD__
+      HOSTNAME: localhost
+      PORT: "5432"
+      DATABASE: postgres
+      COLLECTION_LIST: 'ALL'
+      COLLECT_DB_LOCK_METRICS: true
+      ENABLE_SSL: false
+      TIMEOUT: "10"
+    interval: 30s
+    labels:
+      env: demo
+      role: database
+    inventory_source: config/postgresql

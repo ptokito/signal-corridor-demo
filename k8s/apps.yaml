@@ -1,0 +1,200 @@
+# Smart Signal Corridor services on Kubernetes (k3s).
+#
+# Four Deployments in the "corridor" namespace:
+#   signal-api         Python, New Relic APM agent   NodePort 30081 (the portal calls it)
+#   timing-engine      Node.js, New Relic APM agent  internal only
+#   crew-dispatch      Python, OpenTelemetry only    internal only
+#   corridor-simulator traffic generator             no service
+#
+# Placeholders replaced by the deploy scripts:
+#   IMAGE_PREFIX  ghcr.io/<github user> on AWS, or "local" for the local VM build
+#   PULL_POLICY   Always on AWS (pull from GHCR), Never locally (images imported into k3s)
+#
+# Secrets (license key, database and Redis passwords) come from the Secret
+# "corridor-secrets"; the host tier's IP address comes from the ConfigMap
+# "corridor-config". Both are created by the deploy scripts, never stored in git.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: corridor
+---
+# ---------------------------------------------------------------- signal-api
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signal-api
+  namespace: corridor
+  labels: { app: signal-api, team: signal-systems }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: signal-api } }
+  template:
+    metadata:
+      labels: { app: signal-api, team: signal-systems }
+    spec:
+      containers:
+        - name: signal-api
+          image: IMAGE_PREFIX/corridor-signal-api:latest
+          imagePullPolicy: PULL_POLICY
+          ports: [{ containerPort: 8000 }]
+          env:
+            # New Relic Python agent settings (no config file needed).
+            - { name: NEW_RELIC_APP_NAME, value: corridor-signal-api }
+            - { name: NEW_RELIC_LABELS, value: "env:demo;tier:kubernetes;team:signal-systems" }
+            - { name: NEW_RELIC_DISTRIBUTED_TRACING_ENABLED, value: "true" }
+            - { name: NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED, value: "true" }
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom: { secretKeyRef: { name: corridor-secrets, key: nr_license_key } }
+            # Application settings.
+            - { name: TIMING_URL, value: "http://timing-engine:3000" }
+            - { name: DISPATCH_URL, value: "http://crew-dispatch:8080" }
+            - name: PG_HOST
+              valueFrom: { configMapKeyRef: { name: corridor-config, key: host_ip } }
+            - name: PG_PASSWORD
+              valueFrom: { secretKeyRef: { name: corridor-secrets, key: pg_password } }
+          readinessProbe: { httpGet: { path: /healthz, port: 8000 }, periodSeconds: 10 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 384Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: signal-api
+  namespace: corridor
+spec:
+  type: NodePort          # reachable from outside the cluster on <node-ip>:30081
+  selector: { app: signal-api }
+  ports: [{ port: 8000, targetPort: 8000, nodePort: 30081 }]
+---
+# ---------------------------------------------------------------- timing-engine
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: timing-engine
+  namespace: corridor
+  labels: { app: timing-engine, team: traffic-engineering }
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: timing-engine } }
+  template:
+    metadata:
+      labels: { app: timing-engine, team: traffic-engineering }
+    spec:
+      containers:
+        - name: timing-engine
+          image: IMAGE_PREFIX/corridor-timing-engine:latest
+          imagePullPolicy: PULL_POLICY
+          ports: [{ containerPort: 3000 }]
+          env:
+            # New Relic Node.js agent settings.
+            - { name: NEW_RELIC_APP_NAME, value: corridor-timing-engine }
+            - { name: NEW_RELIC_LABELS, value: "env:demo;tier:kubernetes;team:traffic-engineering" }
+            - { name: NEW_RELIC_DISTRIBUTED_TRACING_ENABLED, value: "true" }
+            - { name: NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED, value: "true" }
+            - name: NEW_RELIC_LICENSE_KEY
+              valueFrom: { secretKeyRef: { name: corridor-secrets, key: nr_license_key } }
+            # The timing plan release. scripts/fault.sh switches this to 2026.2 for the incident.
+            - { name: PLAN_VERSION, value: "2026.1" }
+            - name: PG_HOST
+              valueFrom: { configMapKeyRef: { name: corridor-config, key: host_ip } }
+            - name: REDIS_HOST
+              valueFrom: { configMapKeyRef: { name: corridor-config, key: host_ip } }
+            - name: PG_PASSWORD
+              valueFrom: { secretKeyRef: { name: corridor-secrets, key: pg_password } }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: corridor-secrets, key: redis_password } }
+          readinessProbe: { httpGet: { path: /healthz, port: 3000 }, periodSeconds: 10 }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: timing-engine
+  namespace: corridor
+spec:
+  selector: { app: timing-engine }
+  ports: [{ port: 3000, targetPort: 3000 }]
+---
+# ---------------------------------------------------------------- crew-dispatch
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crew-dispatch
+  namespace: corridor
+  labels: { app: crew-dispatch, team: field-maintenance }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: crew-dispatch } }
+  template:
+    metadata:
+      labels: { app: crew-dispatch, team: field-maintenance }
+    spec:
+      containers:
+        - name: crew-dispatch
+          image: IMAGE_PREFIX/corridor-crew-dispatch:latest
+          imagePullPolicy: PULL_POLICY
+          ports: [{ containerPort: 8080 }]
+          env:
+            # OpenTelemetry only. No New Relic agent in this container.
+            - { name: OTEL_SERVICE_NAME, value: corridor-crew-dispatch }
+            - { name: OTEL_RESOURCE_ATTRIBUTES, value: "deployment.environment=demo,team=field-maintenance,k8s.namespace.name=corridor" }
+            # Port 443, not the OTLP default 4318: many networks only allow 443 outbound.
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "https://otlp.nr-data.net:443" }
+            - { name: OTEL_EXPORTER_OTLP_PROTOCOL, value: "http/protobuf" }
+            - { name: OTEL_TRACES_EXPORTER, value: "otlp" }
+            - { name: OTEL_METRICS_EXPORTER, value: "otlp" }
+            - { name: OTEL_LOGS_EXPORTER, value: "otlp" }
+            - { name: OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED, value: "true" }
+            # New Relic stores metrics as deltas; delta temporality avoids extra memory and ingest.
+            - { name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE, value: "delta" }
+            - { name: OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT, value: "4095" }
+            # The license key goes in an "api-key" header. $(NR_LICENSE_KEY) is expanded by Kubernetes.
+            - name: NR_LICENSE_KEY
+              valueFrom: { secretKeyRef: { name: corridor-secrets, key: nr_license_key } }
+            - { name: OTEL_EXPORTER_OTLP_HEADERS, value: "api-key=$(NR_LICENSE_KEY)" }
+          readinessProbe: { httpGet: { path: /healthz, port: 8080 }, periodSeconds: 10 }
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crew-dispatch
+  namespace: corridor
+spec:
+  selector: { app: crew-dispatch }
+  ports: [{ port: 8080, targetPort: 8080 }]
+---
+# ---------------------------------------------------------------- corridor-simulator
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: corridor-simulator
+  namespace: corridor
+  labels: { app: corridor-simulator }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: corridor-simulator } }
+  template:
+    metadata:
+      labels: { app: corridor-simulator }
+    spec:
+      containers:
+        - name: corridor-simulator
+          image: IMAGE_PREFIX/corridor-simulator:latest
+          imagePullPolicy: PULL_POLICY
+          env:
+            - { name: SIGNAL_API_URL, value: "http://signal-api:8000" }
+            - name: HOST_IP
+              valueFrom: { configMapKeyRef: { name: corridor-config, key: host_ip } }
+            - { name: PORTAL_URL, value: "http://$(HOST_IP)" }
+            - { name: CHECKIN_INTERVAL_SECONDS, value: "8" }
+            - { name: VIEW_PROBABILITY_PER_SECOND, value: "0.25" }
+            - { name: REPORT_PROBABILITY_PER_SECOND, value: "0.012" }
+          resources:
+            requests: { cpu: 20m, memory: 48Mi }
+            limits: { memory: 128Mi }

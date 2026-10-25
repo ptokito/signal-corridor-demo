@@ -1,0 +1,15 @@
+# Terraform: provider downloads, state (contains resource IDs and settings),
+# your variable values (email, account details) and saved plans.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+*.plan
+
+# Python and Node build leftovers
+__pycache__/
+node_modules/
+
+# Dashboard JSON generated for a specific account
+newrelic/dashboard.rendered.json

@@ -1,0 +1,38 @@
+# Builds the four Kubernetes service images and pushes them to GitHub Container
+# Registry (GHCR) on every push to main that touches services/.
+#
+# Result: ghcr.io/<your-github-user>/corridor-<service>:latest (and :<commit sha>)
+# After the first run, make each package public (GitHub > Packages > package >
+# Package settings > Change visibility) so k3s can pull without credentials.
+name: build-images
+on:
+  push:
+    branches: [main]
+    paths: ["services/**", ".github/workflows/build-images.yml"]
+  workflow_dispatch:          # also allows a manual run from the Actions tab
+
+permissions:
+  contents: read
+  packages: write             # lets the built-in GITHUB_TOKEN push to GHCR
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [signal-api, timing-engine, crew-dispatch, simulator]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: services/${{ matrix.service }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/corridor-${{ matrix.service }}:latest
+            ghcr.io/${{ github.repository_owner }}/corridor-${{ matrix.service }}:${{ github.sha }}

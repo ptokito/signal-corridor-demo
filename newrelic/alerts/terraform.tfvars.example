@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is git-ignored.
+# The New Relic user key is NOT set here: export NEW_RELIC_API_KEY instead.
+account_id  = 8656494
+alert_email = "you@example.com"

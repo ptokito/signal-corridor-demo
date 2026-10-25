@@ -1,0 +1,26 @@
+# Log forwarding through the New Relic infrastructure agent (it runs Fluent Bit).
+# Ships the middleware logs from the host tier. The portal's own application logs
+# are forwarded by the Python APM agent instead, with trace IDs attached
+# (logs in context), so they are deliberately NOT listed here; listing them would
+# send every portal log line twice.
+logs:
+  - name: nginx-access
+    file: /var/log/nginx/corridor_access.log
+    attributes:
+      logtype: nginx
+      service: nginx-proxy
+  - name: nginx-error
+    file: /var/log/nginx/corridor_error.log
+    attributes:
+      logtype: nginx-error
+      service: nginx-proxy
+  - name: postgresql
+    file: /var/log/postgresql/*.log
+    attributes:
+      logtype: postgresql
+      service: postgresql
+  - name: redis
+    file: /var/log/redis/redis-server.log
+    attributes:
+      logtype: redis
+      service: redis

@@ -1,0 +1,18 @@
+# New Relic Redis on-host integration (package: nri-redis).
+# Every 15 seconds: connected clients, memory, hit/miss ratio, commands per second.
+# KEYS also reports how many "intersection:*" cache entries exist, which shows the
+# timing-engine's speed-limit cache filling and expiring.
+# __REDIS_PASSWORD__ is replaced by the setup script.
+integrations:
+  - name: nri-redis
+    env:
+      HOSTNAME: localhost
+      PORT: "6379"
+      PASSWORD: __REDIS_PASSWORD__
+      KEYS: '{"0":["intersection:*"]}'
+      REMOTE_MONITORING: true
+    interval: 15s
+    labels:
+      env: demo
+      role: cache
+    inventory_source: config/redis

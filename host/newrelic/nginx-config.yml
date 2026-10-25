@@ -1,0 +1,16 @@
+# New Relic NGINX on-host integration (package: nri-nginx).
+# Reads NGINX's stub_status page every 30 seconds: active connections,
+# requests per second, reading/writing/waiting connections.
+# The config file path also lets it report NGINX configuration as inventory.
+integrations:
+  - name: nri-nginx
+    env:
+      STATUS_URL: http://127.0.0.1/nginx_status
+      STATUS_MODULE: discover
+      CONFIG_PATH: /etc/nginx/nginx.conf
+      REMOTE_MONITORING: true
+    interval: 30s
+    labels:
+      env: demo
+      role: reverse-proxy
+    inventory_source: config/nginx

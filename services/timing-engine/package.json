@@ -1,0 +1,17 @@
+{
+  "name": "timing-engine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Signal timing plan calculator for the Smart Signal Corridor demo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node -r newrelic server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "newrelic": "^12.0.0",
+    "pg": "^8.13.1",
+    "pino": "^9.5.0",
+    "redis": "^4.7.0"
+  }
+}
