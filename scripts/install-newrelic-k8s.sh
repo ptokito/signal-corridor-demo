@@ -34,4 +34,6 @@ helm upgrade --install newrelic-bundle newrelic/nri-bundle \
   --set global.cluster="$CLUSTER_NAME" \
   --set global.licenseKey="$NR_KEY"
 
+# Restart every New Relic pod so all of them pick up the current license key.
+kubectl -n newrelic rollout restart deployment,daemonset
 kubectl -n newrelic get pods

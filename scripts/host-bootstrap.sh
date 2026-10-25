@@ -5,25 +5,33 @@
 # SSM Parameter Store at boot, using the instance's IAM role.
 # Same steps as scripts/local-setup.sh steps 1 to 6.
 # Progress log: /var/log/corridor-bootstrap.log
-set -euxo pipefail
+#
+# No "set -x" here on purpose: tracing would print every command with its values,
+# writing the license key and passwords into the log and the EC2 console output.
+# Progress is reported with step() lines instead.
+set -euo pipefail
 exec > /var/log/corridor-bootstrap.log 2>&1
+step() { echo "$(date -u +%H:%M:%S) ==> $*"; }
 
 REGION="${region}"
 REPO_URL="${repo_url}"
 K3S_IP="${k3s_private_ip}"
 VPC_CIDR="${vpc_cidr}"
 
+step "Installing packages"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
 apt-get install -y nginx postgresql redis-server python3-venv git curl gnupg jq
 snap install aws-cli --classic
 
+step "Reading secrets from SSM Parameter Store"
 param() { aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text; }
 NR_KEY=$(param /signal-corridor/newrelic-license-key)
 PG_PASS=$(param /signal-corridor/postgres-password)
 REDIS_PASS=$(param /signal-corridor/redis-password)
 
 # ---------------------------------------------------------------- PostgreSQL
+step "Configuring PostgreSQL"
 PG_CONF_DIR=$(ls -d /etc/postgresql/*/main)
 sed -i "s/^#listen_addresses.*/listen_addresses = '*'/" "$PG_CONF_DIR/postgresql.conf"
 echo "host corridor corridor $VPC_CIDR scram-sha-256" >> "$PG_CONF_DIR/pg_hba.conf"
@@ -37,12 +45,14 @@ GRANT pg_monitor TO newrelic;
 SQL
 
 # ---------------------------------------------------------------- Redis
+step "Configuring Redis"
 sed -i "s/^bind .*/bind 0.0.0.0/" /etc/redis/redis.conf
 sed -i "s/^protected-mode yes/protected-mode no/" /etc/redis/redis.conf
 echo "requirepass $REDIS_PASS" >> /etc/redis/redis.conf
 systemctl restart redis-server
 
 # ---------------------------------------------------------------- Operations Portal (Flask + New Relic Python agent)
+step "Installing the Operations Portal"
 git clone "$REPO_URL" /opt/corridor
 python3 -m venv /opt/corridor-portal-venv
 /opt/corridor-portal-venv/bin/pip install -r /opt/corridor/services/ops-portal/requirements.txt
@@ -71,6 +81,7 @@ chmod 600 /etc/systemd/system/corridor-portal.service
 systemctl enable --now corridor-portal
 
 # ---------------------------------------------------------------- NGINX reverse proxy
+step "Configuring NGINX"
 cp /opt/corridor/host/nginx-corridor.conf /etc/nginx/sites-available/corridor
 ln -sf /etc/nginx/sites-available/corridor /etc/nginx/sites-enabled/corridor
 rm -f /etc/nginx/sites-enabled/default
@@ -78,6 +89,7 @@ nginx -t
 systemctl reload nginx
 
 # ---------------------------------------------------------------- New Relic infrastructure agent
+step "Installing the New Relic infrastructure agent and integrations"
 install -d -m 0755 /etc/apt/keyrings
 curl -fsSL https://download.newrelic.com/infrastructure_agent/gpg/newrelic-infra.gpg \
   | gpg --dearmor -o /etc/apt/keyrings/newrelic-infra.gpg
@@ -105,4 +117,4 @@ sed -i "s|__REDIS_PASSWORD__|$REDIS_PASS|" /etc/newrelic-infra/integrations.d/re
 chmod 600 /etc/newrelic-infra/integrations.d/*.yml /etc/newrelic-infra.yml
 systemctl restart newrelic-infra
 
-echo "BOOTSTRAP COMPLETE"
+step "BOOTSTRAP COMPLETE"

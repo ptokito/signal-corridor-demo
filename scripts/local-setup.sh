@@ -41,7 +41,9 @@ step "Repo: $REPO   Machine IP: $NODE_IP"
 
 # ---------------------------------------------------------------- 0. remove the earlier Tidewater test, if present
 # The first version of this demo (Tidewater Benefits) used the same ports. Clean it up quietly.
-if systemctl list-unit-files | grep -q '^portal-web.service'; then
+# (systemctl cat, not "list-unit-files | grep -q": with pipefail, grep -q exiting early
+#  makes the pipeline fail and the check silently returns false.)
+if systemctl cat portal-web.service >/dev/null 2>&1; then
   step "Removing the earlier Tidewater Benefits demo"
   systemctl disable --now portal-web || true
   rm -f /etc/systemd/system/portal-web.service /etc/nginx/sites-enabled/tidewater /etc/nginx/sites-available/tidewater
@@ -184,6 +186,10 @@ helm upgrade --install newrelic-bundle newrelic/nri-bundle \
   -f "$REPO/helm/newrelic-values.yaml" \
   --set global.cluster="$CLUSTER_NAME" \
   --set global.licenseKey="$NR_KEY"
+# Running pods keep the key they started with. Restart them all so a changed key
+# (key rotation, or fixing a wrong key) takes effect everywhere, not just in the
+# pods whose health checks happen to fail. Lesson from the first local run.
+kubectl -n newrelic rollout restart deployment,daemonset
 
 # ---------------------------------------------------------------- 9. images
 step "9/10 Building the 4 service images and importing them into k3s"

@@ -55,6 +55,8 @@ resource "newrelic_nrql_alert_condition" "timing_compliance" {
   policy_id   = newrelic_alert_policy.corridor.id
   type        = "static"
   name        = "Signal timing compliance below standard"
+  # Issue title shown in New Relic and used as the email subject. Without it, the
+  # title is generic ("corridor-signal-api query result is below...").
   title_template = "Unsafe signal timing on the Murfreesboro Pike corridor"
   description = <<-EOT
     Share of controller check-ins receiving a yellow interval of at least 3.0 seconds.
@@ -292,6 +294,9 @@ resource "newrelic_workflow" "corridor" {
 
   destination {
     channel_id = newrelic_notification_channel.email.id
+    # Notify when an issue opens, is acknowledged, and closes (stated explicitly
+    # rather than relying on the provider default).
+    notification_triggers = ["ACTIVATED", "ACKNOWLEDGED", "CLOSED"]
   }
 }
 

@@ -2,7 +2,9 @@
 FROM node:22-slim
 WORKDIR /app
 
-# Install dependencies; "newrelic" in package.json is the Node.js APM agent.
+# Install dependencies. "newrelic" is the Node.js APM agent, pinned to "latest" in
+# package.json so every image build gets the current agent (an outdated agent shows
+# an "agent security update available" banner in New Relic).
 COPY package.json .
 RUN npm install --omit=dev
 COPY server.js .
