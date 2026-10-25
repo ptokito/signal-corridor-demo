@@ -226,6 +226,9 @@ resource "aws_instance" "k3s" {
 }
 
 resource "aws_instance" "host" {
+  # The boot script reads these parameters, so they must exist before the host starts.
+  depends_on = [aws_ssm_parameter.nr_license_key, aws_ssm_parameter.pg_password, aws_ssm_parameter.redis_password]
+
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.host_instance_type
   subnet_id              = local.subnet_id
@@ -265,7 +268,7 @@ data "aws_iam_policy_document" "newrelic_assume" {
 
 resource "aws_iam_role" "newrelic" {
   count              = var.newrelic_account_id == "" ? 0 : 1
-  name               = "NewRelicInfrastructure-Integrations"
+  name               = "NewRelicInfrastructure-Integrations-corridor"
   assume_role_policy = data.aws_iam_policy_document.newrelic_assume[0].json
 }
 

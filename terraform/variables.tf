@@ -12,6 +12,10 @@ variable "newrelic_license_key" {
   description = "New Relic INGEST - LICENSE key (not a user key). Pass with TF_VAR_newrelic_license_key."
   type        = string
   sensitive   = true
+  validation {
+    condition     = length(var.newrelic_license_key) == 40
+    error_message = "The New Relic license key must be 40 characters (it ends in NRAL). Is TF_VAR_newrelic_license_key set?"
+  }
 }
 
 variable "newrelic_account_id" {
